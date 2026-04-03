@@ -20,19 +20,32 @@ interface FraudChatbotProps {
   account?: any
 }
 
-const QUICK_PROMPTS = [
-  "Why is this flagged?",
-  "What fraud pattern is this?",
-  "What action should I take?",
-  "Explain the risk score",
-  "Is this money laundering?",
-]
-
 export default function FraudChatbot({ transaction, account }: FraudChatbotProps) {
+  const hasAccountContext = Boolean(account)
+  const quickPrompts = hasAccountContext
+    ? [
+        "Why is this account suspicious?",
+        "Is this money laundering?",
+        "What action should I take for this account?",
+        "Explain this risk score",
+        "What should I check next?",
+      ]
+    : [
+        "What is smurfing?",
+        "How does circular transaction work?",
+        "What should I do if risk score is 90?",
+        "How to detect rapid transfer fraud?",
+        "What are RBI red flags?",
+      ]
+
+  const botGreeting = hasAccountContext
+    ? "Hello! I'm GraphSentinel AI. I can analyze this account context and explain why it may be risky, possible fraud pattern, and recommended actions."
+    : "Hello! I'm GraphSentinel AI. Ask general fraud questions like smurfing, circular flow, risk scores, and investigation actions."
+
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "bot",
-      content: "Hello! I'm GraphSentinel AI. Ask me anything about this transaction or account — I can explain fraud patterns, risk scores, and recommend actions.",
+      content: botGreeting,
       timestamp: new Date(),
     },
   ])
@@ -170,7 +183,7 @@ export default function FraudChatbot({ transaction, account }: FraudChatbotProps
 
       {/* Quick Prompts */}
       <div className="px-4 pb-2 flex gap-2 overflow-x-auto scrollbar-hide">
-        {QUICK_PROMPTS.map((prompt) => (
+        {quickPrompts.map((prompt) => (
           <button
             key={prompt}
             onClick={() => sendMessage(prompt)}
@@ -188,7 +201,7 @@ export default function FraudChatbot({ transaction, account }: FraudChatbotProps
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-            placeholder="Ask about this transaction..."
+            placeholder={hasAccountContext ? "Ask about this account..." : "Ask a general fraud question..."}
             className="flex-1 text-sm"
             disabled={loading}
           />

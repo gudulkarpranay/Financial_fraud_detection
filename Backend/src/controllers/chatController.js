@@ -4,10 +4,73 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
+const formatINR = (n = 0) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
+
+const getGeneralReply = (message = "") => {
+  const q = message.toLowerCase();
+
+  if (q.includes("smurf")) {
+    return "Smurfing means splitting money into many small transfers (often below reporting thresholds) to avoid detection. Action: cluster transactions by sender, 5-15 minute windows, and repeated amounts like ₹8,500-₹9,900.";
+  }
+  if (q.includes("circular")) {
+    return "Circular transaction means funds move in a loop (A→B→C→A). This is a laundering signal because ownership looks changed but money returns to origin. Action: freeze high-risk hops, verify linked beneficiaries, and review graph path timestamps.";
+  }
+  if (q.includes("risk score") || q.includes("90")) {
+    return "If risk score is around 90, treat it as critical. Recommended: temporarily block outgoing transfers, trigger step-up KYC, investigate linked accounts, and escalate for AML review with SAR documentation.";
+  }
+
+  return "I can help with fraud patterns like smurfing, circular flow, fan-out, velocity, and dormant activation. Ask me what pattern you want to understand and I will give detection logic + action plan.";
+};
+
+const getAccountReply = (message = "", account = null) => {
+  const q = message.toLowerCase();
+  const id = account?.id || "this account";
+  const name = account?.name || "the account";
+  const risk = Number(account?.riskScore || 0);
+  const suspicious = Boolean(account?.isSuspicious);
+  const fraudType = account?.fraudType ? String(account.fraudType).replace(/_/g, " ") : null;
+  const country = account?.country || "IN";
+
+  if (q.includes("why") || q.includes("suspicious")) {
+    return `${id} (${name}) is ${suspicious ? "currently flagged suspicious" : "currently marked low risk"} with risk score ${risk}/100. ${fraudType ? `Detected pattern: ${fraudType}. ` : ""}${country !== "IN" ? `Country/jurisdiction (${country}) also increases risk. ` : ""}Check linked transfers, beneficiary concentration, and sudden amount spikes.`;
+  }
+  if (q.includes("money laundering") || q.includes("laundering")) {
+    return `${id}: possible laundering indicators are ${fraudType || "anomaly patterns"}, layered hops, and fast beneficiary spread. Confidence is higher when loop paths, structuring amounts, or offshore links appear together.`;
+  }
+  if (q.includes("action") || q.includes("what should i do")) {
+    return `Recommended actions for ${id}: 1) hold high-value outgoing transfers, 2) run enhanced KYC and device/IP review, 3) inspect last 24h linked accounts, 4) escalate if risk stays above 75.`;
+  }
+
+  return `For ${id}, I can explain why risk is ${risk}/100, whether behavior indicates laundering, and the next operational steps.`;
+};
+
+const localFallbackReply = ({ message, transaction, account }) => {
+  if (account) {
+    return getAccountReply(message, account);
+  }
+  if (transaction) {
+    const from = transaction.fromAccount || transaction.from || "N/A";
+    const to = transaction.toAccount || transaction.to || "N/A";
+    const amount = formatINR(transaction.amount || 0);
+    const score = Number(transaction.riskScore || 0);
+    return `Transaction ${from} → ${to} (${amount}) has risk ${score}/100. Focus on velocity, beneficiary spread, and whether amount deviates from account baseline.`;
+  }
+  return getGeneralReply(message);
+};
+
 export const chatWithSystem = async (req, res) => {
   const { message, transaction, account } = req.body;
 
   try {
+    // If key is missing, return local context-aware response instead of fixed repeated text.
+    if (!process.env.ANTHROPIC_API_KEY) {
+      return res.json({
+        reply: localFallbackReply({ message, transaction, account }),
+        success: true,
+        source: "local-fallback",
+      });
+    }
+
     const contextParts = [];
 
     if (transaction) {
@@ -69,11 +132,9 @@ When answering:
   } catch (error) {
     console.error("AI Chat Error:", error);
     res.json({
-      reply: `Analyzing transaction data. Detected patterns: ${
-        (req.body.transaction?.reasons || []).join(", ") ||
-        "suspicious behavioral anomalies detected"
-      }. Please review manually.`,
+      reply: localFallbackReply({ message, transaction, account }),
       success: false,
+      source: "local-fallback",
     });
   }
 };
