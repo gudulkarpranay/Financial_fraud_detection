@@ -143,6 +143,7 @@ export default function FraudChatbot({ transaction, account }: FraudChatbotProps
             >
               {msg.content}
               <div
+                suppressHydrationWarning
                 className={cn(
                   "mt-1 text-[10px]",
                   msg.role === "bot" ? "text-muted-foreground" : "text-primary-foreground/70"

@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { mockAlerts } from "@/lib/mock-data"
@@ -29,6 +30,32 @@ const alertTimeFormatter = new Intl.DateTimeFormat("en-US", {
 })
 
 export function RecentAlerts() {
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  if (!mounted) {
+    return (
+      <Card className="border-border bg-card">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-card-foreground">Recent Fraud Alerts</CardTitle>
+              <CardDescription>Latest detected suspicious activities</CardDescription>
+            </div>
+            <Badge variant="destructive" className="text-sm">
+              0 Open
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4" />
+        </CardContent>
+      </Card>
+    )
+  }
+
   return (
     <Card className="border-border bg-card">
       <CardHeader>

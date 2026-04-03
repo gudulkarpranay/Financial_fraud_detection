@@ -21,11 +21,11 @@ export const getFundFlow = async (req, res) => {
     // 🧠 fallback demo data
     if (transactions.length === 0) {
       transactions = [
-        { fromAccount: "A1", toAccount: "B1", amount: 50000, timestamp: new Date() },
-        { fromAccount: "B1", toAccount: "C1", amount: 120000, timestamp: new Date() },
-        { fromAccount: "C1", toAccount: "D1", amount: 80000, timestamp: new Date() },
-        { fromAccount: "D1", toAccount: "A1", amount: 90000, timestamp: new Date() },
-        { fromAccount: "A1", toAccount: "E1", amount: 30000, timestamp: new Date() },
+        { fromAccount: "ACC001", toAccount: "ACC002", amount: 50000, timestamp: new Date() },
+        { fromAccount: "ACC002", toAccount: "ACC003", amount: 120000, timestamp: new Date() },
+        { fromAccount: "ACC003", toAccount: "ACC004", amount: 80000, timestamp: new Date() },
+        { fromAccount: "ACC004", toAccount: "ACC001", amount: 90000, timestamp: new Date() },
+        { fromAccount: "ACC001", toAccount: "ACC005", amount: 30000, timestamp: new Date() },
       ];
     }
 

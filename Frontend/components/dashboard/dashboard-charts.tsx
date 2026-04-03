@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Area,
@@ -16,7 +17,30 @@ import {
 } from "recharts"
 import { transactionVolumeData, riskDistributionData, fraudVsNormalData } from "@/lib/mock-data"
 
+function useMounted() {
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+  return mounted
+}
+
 export function TransactionChart() {
+  const mounted = useMounted()
+  if (!mounted) {
+    return (
+      <Card className="col-span-2 border-border bg-card">
+        <CardHeader>
+          <CardTitle className="text-card-foreground">Transaction Volume</CardTitle>
+          <CardDescription>Daily transaction count over the past 15 days</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="h-[300px]" />
+        </CardContent>
+      </Card>
+    )
+  }
+
   return (
     <Card className="col-span-2 border-border bg-card">
       <CardHeader>
@@ -82,6 +106,21 @@ export function TransactionChart() {
 }
 
 export function RiskDistributionChart() {
+  const mounted = useMounted()
+  if (!mounted) {
+    return (
+      <Card className="border-border bg-card">
+        <CardHeader>
+          <CardTitle className="text-card-foreground">Risk Distribution</CardTitle>
+          <CardDescription>Accounts by risk level</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="h-[300px]" />
+        </CardContent>
+      </Card>
+    )
+  }
+
   return (
     <Card className="border-border bg-card">
       <CardHeader>
@@ -130,6 +169,21 @@ export function RiskDistributionChart() {
 }
 
 export function FraudPieChart() {
+  const mounted = useMounted()
+  if (!mounted) {
+    return (
+      <Card className="border-border bg-card">
+        <CardHeader>
+          <CardTitle className="text-card-foreground">Transaction Status</CardTitle>
+          <CardDescription>Normal vs Suspicious</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="h-[300px]" />
+        </CardContent>
+      </Card>
+    )
+  }
+
   return (
     <Card className="border-border bg-card">
       <CardHeader>

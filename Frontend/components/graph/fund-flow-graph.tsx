@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useState, useCallback, useMemo } from "react"
-import { API_BASE_URL, getFundFlow } from "@/lib/api-service"
+import { API_BASE_URL } from "@/lib/api-service"
+import { graphNodes as sessionGraphNodes, graphEdges as sessionGraphEdges } from "@/lib/mock-data"
 import {
   ReactFlow,
   Background,
@@ -45,76 +46,57 @@ export function FundFlowGraph() {
   const [alertNodes, setAlertNodes] = useState<string[]>([])
   const [alertEdges, setAlertEdges] = useState<any[]>([])
 
-  // 🔥 FETCH GRAPH
+  // 🔥 INIT GRAPH FROM SESSION DYNAMIC MOCK DATA
+  // This keeps graph consistent with other dashboard datasets on each refresh.
   useEffect(() => {
-    const fetchGraph = async () => {
+    const safeNodes = (sessionGraphNodes || []).map((node: any, index: number) => ({
+      id: node.id || `node-${index}`,
+      type: node.type || "accountNode",
+      position: {
+        x: node.position?.x ?? (index % 3) * 220,
+        y: node.position?.y ?? Math.floor(index / 3) * 160,
+      },
+      data: {
+        account: {
+          id: node.data?.account?.id || node.id,
+          riskScore: node.data?.account?.riskScore ?? 0,
+          isSuspicious: node.data?.account?.isSuspicious ?? false,
+          reasons: node.data?.account?.reasons || [],
+          balance: node.data?.account?.balance ?? 0,
+          type: node.data?.account?.type || "User",
+          country: node.data?.account?.country || "Unknown",
+        },
+      },
+    }))
+
+    const safeEdges = (sessionGraphEdges || []).map((edge: any, index: number) => ({
+      id: edge.id || `edge-${index}`,
+      source: edge.source,
+      target: edge.target,
+      label: edge.label || "",
+      animated: edge.animated || false,
+      markerEnd: {
+        type: MarkerType.ArrowClosed,
+        color: edge.style?.stroke || "#999",
+      },
+      style: {
+        ...edge.style,
+        strokeWidth: 2,
+      },
+    }))
+
+    setNodes(safeNodes)
+    setEdges(safeEdges)
+    setLoading(false)
+
+    setTimeout(() => {
       try {
-        const response = await getFundFlow("A1")
-
-        const data =
-          response?.nodes && response?.edges
-            ? response
-            : response?.data?.nodes && response?.data?.edges
-              ? response.data
-              : { nodes: [], edges: [] }
-
-        console.log("FINAL GRAPH DATA:", data)
-
-        const safeNodes = (data.nodes || []).map((node: any, index: number) => ({
-          id: node.id || `node-${index}`,
-          type: node.type || "accountNode",
-          position: {
-            x: node.position?.x ?? (index % 3) * 220,
-            y: node.position?.y ?? Math.floor(index / 3) * 160,
-          },
-          data: {
-            account: {
-              id: node.data?.account?.id || node.id,
-              riskScore: node.data?.account?.riskScore ?? 0,
-              isSuspicious: node.data?.account?.isSuspicious ?? false,
-              reasons: node.data?.account?.reasons || [],
-              balance: node.data?.account?.balance ?? 0,
-              type: node.data?.account?.type || "User",
-              country: node.data?.account?.country || "Unknown",
-            },
-          },
-        }))
-
-        const safeEdges = (data.edges || []).map((edge: any, index: number) => ({
-          id: edge.id || `edge-${index}`,
-          source: edge.source,
-          target: edge.target,
-          label: edge.label || "",
-          animated: edge.animated || false,
-          markerEnd: {
-            type: MarkerType.ArrowClosed,
-            color: edge.style?.stroke || "#999",
-          },
-          style: {
-            ...edge.style,
-            strokeWidth: 2,
-          },
-        }))
-
-        setNodes(safeNodes)
-        setEdges(safeEdges)
-
-        setTimeout(() => {
-          try {
-            reactFlowInstance.fitView({ padding: 0.3 })
-          } catch (e) {
-            console.warn("fitView skipped")
-          }
-        }, 200)
-      } catch (err) {
-        console.error("Graph fetch error:", err)
-      } finally {
-        setLoading(false)
+        reactFlowInstance.fitView({ padding: 0.3 })
+      } catch {
+        // no-op
       }
-    }
-
-    fetchGraph()
-  }, [])
+    }, 200)
+  }, [reactFlowInstance, setNodes, setEdges])
 
   // 🔥 SOCKET LISTENER (AUTO FRAUD HIGHLIGHT)
   useEffect(() => {

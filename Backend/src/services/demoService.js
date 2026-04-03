@@ -1,51 +1,139 @@
 import { produceTransaction } from "../kafka/producer.js";
 import { analyzeTransaction } from "./fraudDetectionService.js";
 
-// 🔥 Demo Accounts
-const accounts = ["A1", "A2", "A3", "A4", "A5"];
+const nowIso = (offsetMs = 0) => new Date(Date.now() + offsetMs).toISOString();
+const randomAmount = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 
-// 🔥 Random amount generator
-const randomAmount = () =>
-  Math.floor(Math.random() * 50000) + 5000;
-
-// 🔥 FRAUD PATTERNS (VERY IMPORTANT FOR DEMO)
-const generateFraudPatterns = () => {
-  return [
-    // 🔴 Circular Fraud
-    { fromAccount: "A1", toAccount: "A2", amount: randomAmount() },
-    { fromAccount: "A2", toAccount: "A3", amount: randomAmount() },
-    { fromAccount: "A3", toAccount: "A1", amount: randomAmount() },
-
-    // 🟠 Smurfing
-    { fromAccount: "A4", toAccount: "A5", amount: 9000 },
-    { fromAccount: "A4", toAccount: "A5", amount: 9500 },
-    { fromAccount: "A4", toAccount: "A5", amount: 8700 },
-
-    // 🟡 Large suspicious
-    { fromAccount: "A2", toAccount: "A5", amount: 120000 },
+// Mix normal + fraudulent transactions so demo visibly shows both.
+const generateDemoTransactions = () => {
+  const normal = [
+    {
+      fromAccount: "ACC001",
+      toAccount: "ACC006",
+      amount: randomAmount(1800, 9500),
+      fromBank: "SBI",
+      toBank: "SBI",
+      fromCountry: "IN",
+      toCountry: "IN",
+    },
+    {
+      fromAccount: "ACC003",
+      toAccount: "ACC004",
+      amount: randomAmount(12000, 32000),
+      fromBank: "HDFC",
+      toBank: "HDFC",
+      fromCountry: "IN",
+      toCountry: "IN",
+    },
   ];
+
+  const fraudulent = [
+    // Circular sequence
+    {
+      fromAccount: "ACC002",
+      toAccount: "ACC003",
+      amount: randomAmount(85000, 125000),
+      fromBank: "ICICI",
+      toBank: "AXIS",
+      fromCountry: "IN",
+      toCountry: "IN",
+    },
+    {
+      fromAccount: "ACC003",
+      toAccount: "ACC005",
+      amount: randomAmount(78000, 118000),
+      fromBank: "HDFC",
+      toBank: "KOTAK",
+      fromCountry: "IN",
+      toCountry: "IN",
+    },
+    {
+      fromAccount: "ACC005",
+      toAccount: "ACC002",
+      amount: randomAmount(75000, 110000),
+      fromBank: "PNB",
+      toBank: "ICICI",
+      fromCountry: "IN",
+      toCountry: "IN",
+    },
+    // Smurfing burst
+    {
+      fromAccount: "ACC007",
+      toAccount: "ACC008",
+      amount: 9200,
+      fromBank: "SBI",
+      toBank: "HDFC",
+      fromCountry: "IN",
+      toCountry: "IN",
+    },
+    {
+      fromAccount: "ACC007",
+      toAccount: "ACC006",
+      amount: 9600,
+      fromBank: "SBI",
+      toBank: "ICICI",
+      fromCountry: "IN",
+      toCountry: "IN",
+    },
+    {
+      fromAccount: "ACC007",
+      toAccount: "ACC005",
+      amount: 8800,
+      fromBank: "SBI",
+      toBank: "AXIS",
+      fromCountry: "IN",
+      toCountry: "IN",
+    },
+    {
+      fromAccount: "ACC007",
+      toAccount: "ACC004",
+      amount: 9100,
+      fromBank: "SBI",
+      toBank: "KOTAK",
+      fromCountry: "IN",
+      toCountry: "IN",
+    },
+    {
+      fromAccount: "ACC007",
+      toAccount: "ACC003",
+      amount: 9700,
+      fromBank: "SBI",
+      toBank: "PNB",
+      fromCountry: "IN",
+      toCountry: "IN",
+    },
+    // Cross-border high risk
+    {
+      fromAccount: "ACC008",
+      toAccount: "ACC001",
+      amount: randomAmount(140000, 260000),
+      fromBank: "ICICI",
+      toBank: "SBI",
+      fromCountry: "RU",
+      toCountry: "IN",
+    },
+  ];
+
+  return [...normal, ...fraudulent];
 };
 
-// 🔥 MAIN DEMO FUNCTION
 export const runDemo = async () => {
   try {
     console.log("🎬 Running Fraud Demo...");
 
-    const transactions = generateFraudPatterns();
+    const transactions = generateDemoTransactions();
     const seenTransactions = [];
 
-    for (const tx of transactions) {
+    for (let i = 0; i < transactions.length; i++) {
+      const tx = transactions[i];
       const transaction = {
         ...tx,
-        timestamp: Date.now(),
+        timestamp: nowIso(i * 1200),
       };
 
       seenTransactions.push(transaction);
-
-      // Optional Kafka streaming (if enabled/connected)
       await produceTransaction(transaction);
 
-      // Always emit live fraud alerts for demo UX
       const analysis = await analyzeTransaction(transaction, seenTransactions);
       global.io?.emit("fraud-alert", {
         fromAccount: transaction.fromAccount,
@@ -57,10 +145,8 @@ export const runDemo = async () => {
         path: [{ from: transaction.fromAccount, to: transaction.toAccount }],
       });
 
-      console.log("📤 Demo TX:", tx);
-
-      // ⏱ Delay for visualization
-      await new Promise((res) => setTimeout(res, 800));
+      console.log("📤 Demo TX:", transaction, "=>", analysis.alertLevel, analysis.riskScore);
+      await new Promise((res) => setTimeout(res, 700));
     }
 
     console.log("✅ Demo Completed");
