@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { mockAccounts, mockAlerts, mockDashboardStats } from "@/lib/mock-data"
+import { useDashboardData } from "@/contexts/dashboard-data-context"
 import {
   FileText,
   Download,
@@ -54,11 +54,36 @@ const reportTypes = [
 ]
 
 export default function ReportsPage() {
+  const { loading, error, data } = useDashboardData()
+  const mockAccounts = data?.accounts ?? []
+  const mockAlerts = data?.alerts ?? []
+  const mockDashboardStats = data?.stats
+
   const [selectedReport, setSelectedReport] = useState("executive")
   const [dateRange, setDateRange] = useState("7d")
 
   const suspiciousAccounts = mockAccounts.filter((a) => a.isSuspicious)
   const openAlerts = mockAlerts.filter((a) => a.status === "open")
+
+  if (loading && !data) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Reports</h1>
+          <p className="text-muted-foreground">Loading report data…</p>
+        </div>
+        <div className="h-64 animate-pulse rounded-lg bg-muted" />
+      </div>
+    )
+  }
+
+  if (error || !mockDashboardStats) {
+    return (
+      <div className="rounded-lg border border-destructive/50 bg-destructive/5 p-6 text-destructive">
+        {error || "Could not load report data."}
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">

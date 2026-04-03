@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { ArrowUpRight, ArrowDownRight, Activity, AlertTriangle, Users, TrendingUp } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useDashboardData } from "@/contexts/dashboard-data-context"
 
 interface StatCardProps {
   title: string
@@ -16,7 +17,7 @@ interface StatCardProps {
 
 function StatCard({ title, value, change, changeLabel, icon: Icon, variant = "default" }: StatCardProps) {
   const [displayValue, setDisplayValue] = useState(0)
-  const numericValue = typeof value === "number" ? value : parseInt(value.replace(/[^0-9]/g, ""))
+  const numericValue = typeof value === "number" ? value : parseInt(String(value).replace(/[^0-9]/g, ""), 10) || 0
 
   useEffect(() => {
     const duration = 1000
@@ -84,11 +85,39 @@ function StatCard({ title, value, change, changeLabel, icon: Icon, variant = "de
 }
 
 export function StatsCards() {
+  const { loading, error, data } = useDashboardData()
+  const s = data?.stats
+
+  if (loading && !s) {
+    return (
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {[1, 2, 3, 4].map((i) => (
+          <Card key={i} className="border-border bg-card">
+            <CardContent className="p-6">
+              <div className="h-24 animate-pulse rounded-md bg-muted" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    )
+  }
+
+  if (error || !s) {
+    const base = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
+    return (
+      <Card className="border-destructive/50 bg-destructive/5">
+        <CardContent className="p-4 text-sm text-destructive">
+          {error || `Could not load dashboard statistics. Is the backend running on ${base}?`}
+        </CardContent>
+      </Card>
+    )
+  }
+
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
       <StatCard
         title="Total Transactions"
-        value={15847}
+        value={s.totalTransactions}
         change={12.5}
         changeLabel="vs last week"
         icon={Activity}
@@ -96,7 +125,7 @@ export function StatsCards() {
       />
       <StatCard
         title="Suspicious Transactions"
-        value={234}
+        value={s.suspiciousTransactions}
         change={-8.2}
         changeLabel="vs last week"
         icon={AlertTriangle}
@@ -104,7 +133,7 @@ export function StatsCards() {
       />
       <StatCard
         title="High-Risk Accounts"
-        value={8}
+        value={s.highRiskAccounts}
         change={25}
         changeLabel="vs last week"
         icon={Users}
@@ -112,7 +141,7 @@ export function StatsCards() {
       />
       <StatCard
         title="Fraud Alerts"
-        value={12}
+        value={s.fraudAlerts}
         change={-15.3}
         changeLabel="vs last week"
         icon={TrendingUp}

@@ -20,7 +20,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { mockTransactions, type Transaction } from "@/lib/mock-data"
+import { useDashboardData } from "@/contexts/dashboard-data-context"
+import type { Transaction } from "@/lib/types-dashboard"
 import {
   Search,
   Filter,
@@ -51,11 +52,14 @@ const typeLabels: Record<Transaction["type"], string> = {
 }
 
 export default function TransactionsPage() {
+  const { loading, error, data } = useDashboardData()
+  const mockTransactions = data?.transactions ?? []
+
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [typeFilter, setTypeFilter] = useState<string>("all")
   const [searchQuery, setSearchQuery] = useState("")
 
-  const filteredTransactions = mockTransactions.filter((txn) => {
+  const filteredTransactions = mockTransactions.filter((txn: Transaction) => {
     if (statusFilter !== "all" && txn.status !== statusFilter) return false
     if (typeFilter !== "all" && txn.type !== typeFilter) return false
     if (
@@ -70,9 +74,32 @@ export default function TransactionsPage() {
 
   const totalVolume = mockTransactions.reduce((sum, txn) => sum + txn.amount, 0)
   const suspiciousCount = mockTransactions.filter((t) => t.status !== "normal").length
-  const avgRisk = Math.round(
-    mockTransactions.reduce((sum, txn) => sum + txn.riskScore, 0) / mockTransactions.length
-  )
+  const avgRisk =
+    mockTransactions.length > 0
+      ? Math.round(
+          mockTransactions.reduce((sum, txn) => sum + txn.riskScore, 0) / mockTransactions.length
+        )
+      : 0
+
+  if (loading && !data) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Transactions</h1>
+          <p className="text-muted-foreground">Loading transactions…</p>
+        </div>
+        <div className="h-64 animate-pulse rounded-lg bg-muted" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="rounded-lg border border-destructive/50 bg-destructive/5 p-6 text-destructive">
+        {error}
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">

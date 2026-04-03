@@ -1,5 +1,8 @@
 "use client"
 
+import { toast } from "sonner"
+import { API_BASE_URL } from "@/lib/api-service"
+
 import { useState, Fragment } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -20,7 +23,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { mockAlerts, type Alert } from "@/lib/mock-data"
+import { useDashboardData } from "@/contexts/dashboard-data-context"
+import type { Alert } from "@/lib/types-dashboard"
 import {
   AlertTriangle,
   RefreshCw,
@@ -28,6 +32,7 @@ import {
   Search,
   Filter,
   Eye,
+  Mail,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -111,12 +116,29 @@ const typeAnalysis: Record<Alert["type"], { findings: string[]; actions: string[
 }
 
 export default function AlertsPage() {
+  const { loading, error, data } = useDashboardData()
+  const mockAlerts = data?.alerts ?? []
+
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [riskFilter, setRiskFilter] = useState<string>("all")
   const [searchQuery, setSearchQuery] = useState("")
   const [expandedAlert, setExpandedAlert] = useState<string | null>(null)
 
-  const filteredAlerts = mockAlerts.filter((alert) => {
+  const sendEmail = async (alert: Alert) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/email/send`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ to: alert.email, alertData: alert })
+      });
+      if (res.ok) toast.success("Email sent successfully!");
+      else toast.error("Failed to send email");
+    } catch(e) {
+      toast.error("Error sending email");
+    }
+  }
+
+  const filteredAlerts = mockAlerts.filter((alert: Alert) => {
     if (statusFilter !== "all" && alert.status !== statusFilter) return false
     if (riskFilter === "high" && alert.riskScore < 70) return false
     if (riskFilter === "medium" && (alert.riskScore < 40 || alert.riskScore >= 70)) return false
@@ -129,6 +151,26 @@ export default function AlertsPage() {
       return false
     return true
   })
+
+  if (loading && !data) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Fraud Alerts</h1>
+          <p className="text-muted-foreground">Loading alerts…</p>
+        </div>
+        <div className="h-64 animate-pulse rounded-lg bg-muted" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="rounded-lg border border-destructive/50 bg-destructive/5 p-6 text-destructive">
+        {error}
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -257,7 +299,13 @@ export default function AlertsPage() {
                     {isOpen && (
                       <TableRow>
                         <TableCell colSpan={6}>
-                          <div className="p-4 bg-muted rounded-lg space-y-2">
+                          <div className="p-4 bg-muted rounded-lg space-y-2 relative">
+                            <div className="absolute top-4 right-4">
+                              <Button size="sm" variant="outline" onClick={() => sendEmail(alert)}>
+                                <Mail className="h-4 w-4 mr-2" />
+                                Send Email Warning
+                              </Button>
+                            </div>
                             <p className="font-semibold text-sm">
                               🚨 Fraud Analysis
                             </p>

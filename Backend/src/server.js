@@ -13,6 +13,8 @@ import fundFlowRoutes from "./routes/fundFlowRoutes.js";
 import demoRoutes from "./routes/demoRoutes.js"; // ✅ FIXED IMPORT
 import feedbackRoutes from "./routes/feedbackRoutes.js";
 import chatRoutes from "./routes/chatRoutes.js";
+import bootstrapRoutes from "./routes/bootstrapRoutes.js";
+import emailRoutes from "./routes/emailRoutes.js";
 
 // ✅ KAFKA
 import { startProducer } from "./kafka/producer.js";
@@ -48,6 +50,8 @@ app.use("/api/fund-flow", fundFlowRoutes);
 app.use("/api/demo", demoRoutes); // ✅ DEMO MODE ROUTE
 app.use("/api/feedback", feedbackRoutes);
 app.use("/api/chat", chatRoutes);
+app.use("/api/bootstrap", bootstrapRoutes);
+app.use("/api/email", emailRoutes);
 
 // ================= SOCKET CONNECTION =================
 io.on("connection", (socket) => {

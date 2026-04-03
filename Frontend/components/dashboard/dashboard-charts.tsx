@@ -15,7 +15,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts"
-import { transactionVolumeData, riskDistributionData, fraudVsNormalData } from "@/lib/mock-data"
+import { useDashboardData } from "@/contexts/dashboard-data-context"
 
 function useMounted() {
   const [mounted, setMounted] = useState(false)
@@ -27,7 +27,10 @@ function useMounted() {
 
 export function TransactionChart() {
   const mounted = useMounted()
-  if (!mounted) {
+  const { data, loading } = useDashboardData()
+  const transactionVolumeData = data?.transactionVolumeData ?? []
+
+  if (!mounted || loading) {
     return (
       <Card className="col-span-2 border-border bg-card">
         <CardHeader>
@@ -107,7 +110,10 @@ export function TransactionChart() {
 
 export function RiskDistributionChart() {
   const mounted = useMounted()
-  if (!mounted) {
+  const { data, loading } = useDashboardData()
+  const riskDistributionData = data?.riskDistributionData ?? []
+
+  if (!mounted || loading) {
     return (
       <Card className="border-border bg-card">
         <CardHeader>
@@ -170,7 +176,10 @@ export function RiskDistributionChart() {
 
 export function FraudPieChart() {
   const mounted = useMounted()
-  if (!mounted) {
+  const { data, loading } = useDashboardData()
+  const fraudVsNormalData = data?.fraudVsNormalData ?? []
+
+  if (!mounted || loading) {
     return (
       <Card className="border-border bg-card">
         <CardHeader>

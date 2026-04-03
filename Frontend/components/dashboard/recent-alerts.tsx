@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { mockAlerts } from "@/lib/mock-data"
+import { useDashboardData } from "@/contexts/dashboard-data-context"
 import { AlertTriangle, RefreshCw, CheckCircle2, Clock } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -31,6 +31,9 @@ const alertTimeFormatter = new Intl.DateTimeFormat("en-US", {
 
 export function RecentAlerts() {
   const [mounted, setMounted] = useState(false)
+  const { loading, error, data } = useDashboardData()
+  const alerts = data?.alerts ?? []
+
   useEffect(() => {
     setMounted(true)
   }, [])
@@ -56,6 +59,37 @@ export function RecentAlerts() {
     )
   }
 
+  if (loading && !data) {
+    return (
+      <Card className="border-border bg-card">
+        <CardHeader>
+          <CardTitle className="text-card-foreground">Recent Fraud Alerts</CardTitle>
+          <CardDescription>Loading alerts…</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-20 animate-pulse rounded-lg bg-muted" />
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (error) {
+    return (
+      <Card className="border-destructive/50 bg-destructive/5">
+        <CardHeader>
+          <CardTitle className="text-destructive">Alerts unavailable</CardTitle>
+          <CardDescription>{error}</CardDescription>
+        </CardHeader>
+      </Card>
+    )
+  }
+
+  const openCount = alerts.filter((a) => a.status === "open").length
+
   return (
     <Card className="border-border bg-card">
       <CardHeader>
@@ -65,14 +99,15 @@ export function RecentAlerts() {
             <CardDescription>Latest detected suspicious activities</CardDescription>
           </div>
           <Badge variant="destructive" className="text-sm">
-            {mockAlerts.filter((a) => a.status === "open").length} Open
+            {openCount} Open
           </Badge>
         </div>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          {mockAlerts.slice(0, 5).map((alert) => {
+          {alerts.slice(0, 5).map((alert) => {
             const StatusIcon = statusConfig[alert.status].icon
+            const typeLabel = alertTypeIcons[alert.type] ?? alert.type
             return (
               <div
                 key={alert.id}
@@ -90,7 +125,7 @@ export function RecentAlerts() {
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <span className="font-medium text-card-foreground">
-                        {alertTypeIcons[alert.type]} Transaction Alert
+                        {typeLabel} Transaction Alert
                       </span>
                       <Badge
                         variant="outline"
@@ -109,7 +144,9 @@ export function RecentAlerts() {
                     <p className="text-sm text-muted-foreground">{alert.description}</p>
                     <div className="flex items-center gap-4 text-xs text-muted-foreground">
                       <span>Account: {alert.accountId}</span>
-                      {alert.amount && <span>Amount: ₹{alert.amount.toLocaleString("en-IN")}</span>}
+                      {alert.amount != null && (
+                        <span>Amount: ₹{alert.amount.toLocaleString("en-IN")}</span>
+                      )}
                     </div>
                   </div>
                 </div>

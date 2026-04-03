@@ -1,8 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback, useMemo } from "react"
-import { API_BASE_URL } from "@/lib/api-service"
-import { graphNodes as sessionGraphNodes, graphEdges as sessionGraphEdges } from "@/lib/mock-data"
+import { useDashboardData } from "@/contexts/dashboard-data-context"
 import {
   ReactFlow,
   Background,
@@ -13,6 +12,8 @@ import {
   addEdge,
   type Connection,
   type Node,
+  type Edge,
+  type NodeTypes,
   Panel,
   MarkerType,
   useReactFlow,
@@ -27,29 +28,43 @@ import { Badge } from "@/components/ui/badge"
 import { X, AlertTriangle } from "lucide-react"
 
 import { io } from "socket.io-client"
+import { API_BASE_URL } from "@/lib/api-service"
 
 const nodeTypes = {
   accountNode: AccountNode,
-}
+} as NodeTypes
 
 export function FundFlowGraph() {
   const reactFlowInstance = useReactFlow()
+  const { loading: bootstrapLoading, error: bootstrapError, data } = useDashboardData()
 
-  const [nodes, setNodes, onNodesChange] = useNodesState([])
-  const [edges, setEdges, onEdgesChange] = useEdgesState([])
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node>([])
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([])
   const [selectedAccount, setSelectedAccount] = useState<any>(null)
   const [highlightSuspicious, setHighlightSuspicious] = useState(true)
   const [loading, setLoading] = useState(true)
   const [highlightedPath, setHighlightedPath] = useState<string[]>([])
 
-  // 🔥 NEW: SOCKET HIGHLIGHT STATES
   const [alertNodes, setAlertNodes] = useState<string[]>([])
   const [alertEdges, setAlertEdges] = useState<any[]>([])
 
-  // 🔥 INIT GRAPH FROM SESSION DYNAMIC MOCK DATA
-  // This keeps graph consistent with other dashboard datasets on each refresh.
   useEffect(() => {
-    const safeNodes = (sessionGraphNodes || []).map((node: any, index: number) => ({
+    const graphNodes = data?.graphNodes ?? []
+    const graphEdges = data?.graphEdges ?? []
+
+    if (bootstrapLoading && !data) {
+      setLoading(true)
+      return
+    }
+
+    if (!graphNodes.length && !bootstrapError) {
+      setNodes([])
+      setEdges([])
+      setLoading(false)
+      return
+    }
+
+    const safeNodes = graphNodes.map((node: any, index: number) => ({
       id: node.id || `node-${index}`,
       type: node.type || "accountNode",
       position: {
@@ -69,7 +84,7 @@ export function FundFlowGraph() {
       },
     }))
 
-    const safeEdges = (sessionGraphEdges || []).map((edge: any, index: number) => ({
+    const safeEdges = graphEdges.map((edge: any, index: number) => ({
       id: edge.id || `edge-${index}`,
       source: edge.source,
       target: edge.target,
@@ -96,22 +111,18 @@ export function FundFlowGraph() {
         // no-op
       }
     }, 200)
-  }, [reactFlowInstance, setNodes, setEdges])
+  }, [bootstrapLoading, data, bootstrapError, reactFlowInstance, setNodes, setEdges])
 
-  // 🔥 SOCKET LISTENER (AUTO FRAUD HIGHLIGHT)
   useEffect(() => {
     const socket = io(API_BASE_URL)
 
     socket.on("fraud-alert", (alert: any) => {
-      console.log("🚨 FRAUD ALERT RECEIVED:", alert)
-
       const nodes = alert.path?.map((p: any) => p.from) || []
-      const edges = alert.path || []
+      const edgesFromAlert = alert.path || []
 
       setAlertNodes(nodes)
-      setAlertEdges(edges)
+      setAlertEdges(edgesFromAlert)
 
-      // 🔥 Auto focus graph
       setTimeout(() => {
         try {
           reactFlowInstance.fitView({ padding: 0.4 })
@@ -130,7 +141,6 @@ export function FundFlowGraph() {
     [setEdges]
   )
 
-  // 🔗 PATH DETECTION
   const getConnectedPath = (nodeId: string) => {
     const path: string[] = []
 
@@ -144,7 +154,6 @@ export function FundFlowGraph() {
     return [...new Set(path)]
   }
 
-  // 🔥 NODE CLICK
   const onNodeClick = useCallback(
     (_: any, node: Node) => {
       setSelectedAccount(node.data?.account)
@@ -154,7 +163,6 @@ export function FundFlowGraph() {
     [edges]
   )
 
-  // 🔥 FILTER NODES (MERGED LOGIC)
   const filteredNodes = useMemo(() => {
     return nodes.map((node: any) => {
       const isPath = highlightedPath.includes(node.id)
@@ -177,9 +185,25 @@ export function FundFlowGraph() {
     })
   }, [nodes, highlightedPath, alertNodes])
 
-  // 🔥 FILTER EDGES (MERGED LOGIC)
   const filteredEdges = useMemo(() => {
-    return edges.map((edge: any) => {
+    const mappedAlertEdges = alertEdges
+      .filter((e: any) => e?.from && e?.to)
+      .map((e: any, idx: number) => ({
+        id: `alert-${idx}-${e.from}-${e.to}`,
+        source: e.from,
+        target: e.to,
+        animated: true,
+        style: { stroke: "red", strokeWidth: 3 },
+      }))
+
+    const existingPairs = new Set(edges.map((e: any) => `${e.source}->${e.target}`))
+    const extraAlertEdges = mappedAlertEdges.filter(
+      (e: any) => !existingPairs.has(`${e.source}->${e.target}`)
+    )
+
+    const combinedEdges = [...edges, ...extraAlertEdges]
+
+    return combinedEdges.map((edge: any) => {
       const isPath =
         highlightedPath.includes(edge.source) &&
         highlightedPath.includes(edge.target)
@@ -210,6 +234,14 @@ export function FundFlowGraph() {
       }
     })
   }, [edges, highlightedPath, alertEdges])
+
+  if (bootstrapError && !data) {
+    return (
+      <div className="rounded-lg border border-destructive/50 bg-destructive/5 p-4 text-sm text-destructive">
+        {bootstrapError}
+      </div>
+    )
+  }
 
   if (loading) {
     return <div className="p-4">Loading graph...</div>
@@ -245,7 +277,6 @@ export function FundFlowGraph() {
           }}
         />
 
-        {/* 🔥 CONTROL PANEL */}
         <Panel position="top-left" className="!m-4">
           <Card className="w-64">
             <CardHeader className="pb-2">
@@ -270,7 +301,6 @@ export function FundFlowGraph() {
         </Panel>
       </ReactFlow>
 
-      {/* 🔥 SIDE PANEL */}
       {selectedAccount && (
         <div className="absolute right-4 top-4 z-10 w-80">
           <Card>

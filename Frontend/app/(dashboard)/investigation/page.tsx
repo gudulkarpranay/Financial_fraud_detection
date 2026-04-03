@@ -5,7 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { mockAccounts, mockTransactions, type Account, type Transaction } from "@/lib/mock-data"
+import { useDashboardData } from "@/contexts/dashboard-data-context"
+import type { Account, Transaction } from "@/lib/types-dashboard"
 import {
   Search,
   Network,
@@ -24,6 +25,10 @@ import TransactionTimeline from "@/components/investigation/transaction_timeline
 import FraudChatbot from "@/components/chat/fraud-chatbot"
 
 export default function InvestigationPage() {
+  const { loading: dataLoading, error, data } = useDashboardData()
+  const mockAccounts = data?.accounts ?? []
+  const mockTransactions = data?.transactions ?? []
+
   const [accountId, setAccountId] = useState("")
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null)
   const [relatedTransactions, setRelatedTransactions] = useState<Transaction[]>([])
@@ -49,6 +54,26 @@ export default function InvestigationPage() {
       }
       setIsSearching(false)
     }, 500)
+  }
+
+  if (dataLoading && !data) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Investigation Mode</h1>
+          <p className="text-muted-foreground">Loading accounts…</p>
+        </div>
+        <div className="h-48 animate-pulse rounded-lg bg-muted" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="rounded-lg border border-destructive/50 bg-destructive/5 p-6 text-destructive">
+        {error}
+      </div>
+    )
   }
 
   return (
@@ -259,7 +284,7 @@ export default function InvestigationPage() {
           <CardContent className="py-12 text-center">
             <Search className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
             <h3 className="text-lg font-medium text-card-foreground">Account Not Found</h3>
-            <p className="text-muted-foreground">No account found with ID "{accountId}". Try ACC001 to ACC013.</p>
+            <p className="text-muted-foreground">No account found with ID "{accountId}". Try ACC001 to ACC020.</p>
           </CardContent>
         </Card>
       )}
